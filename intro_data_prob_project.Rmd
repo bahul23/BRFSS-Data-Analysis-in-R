@@ -1,0 +1,253 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(pander)
+library(colorspace)
+library(tidyr)
+```
+
+### Load data
+
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+
+* * *
+
+## Part 1: Data
+The BRFSS is an ongoing surveillance system designed to measure behavioral risk factors for the non-institutionalized adult population. The objective is to collect uniform, state-specific data on preventitive health practices and risk behaviors that are linked to chronic diseases, injuries and preventable infectious diseases.The study's observations are collected by contacting household respondents by phone calls. Prospective respondents are eliminated from consideration if they are not 18 years or older, at a other residential location, or if the phone number they are using is not classified. 
+
+Scope of inference - Generalizability: BRFSS collects health-related information through telephone surveys of U.S. residents in all 50 states. And the survey is conducted using Random Digit Dialing (RDD) techniques on both landlines and cell phones.BRFSS completes more than 400,000 adult interviews each year.Given the method of selection as random sampling, size of the sample study and the geographic breadth of the repondents the sample data can be GENERALIZED to the total U.S. population.
+
+Scope of inference - Causality: As the data is collected by random sampling with no random assignment it can  detect relationships in population, but CANNOT determine CAUSALITY between two variables.
+
+But there could be BIASES if a detailed study is done. BIASES may likely include:
+Nonresponse Bias: potential respondents may not answer their phones when called or otherwise may not be available
+Response Bias: respondents may misreport their true health status due to the sensitive nature of health questions. For example, a respondent may underreport the number of times they binge drank in the past month because of concerns of sounding like they drink too much.
+
+We can conclude that the study is generalizable, but the scope of inference is narrow and causality can not be determined.
+
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+
+Are a US adult's employment status and their age group associated with the number of days they reported where their mental health was not good?
+
+Variables: employ1 (Employment Status),X_age_g (Imputed Age In Six Groups), and menthlth (Number Of Days Mental Health Not Good)
+
+Purpose: Mental Health is a major public health issue, yet many people are still anware about it or refuse to accept it, even young people are facing mental health problems due to current lifestyle and stress.Is mental health problems are related to the persons current employment and does the his/her age relate to the magnitude of such relationships? It will help psychiatrist, doctors and researchers working in the area of mental health to better understand the scenario. 
+
+
+**Research quesion 2:**
+
+Does obesity and age group of US adult's is associated with chances of having angina or coronary heart disease?
+
+Variables: X_rfbmi5 (Overweight Or Obese Calculated Variable), X_age_g (Imputed Age In Six Groups), cvdcrhd4 (Ever Diagnosed With Angina Or Coronary Heart Disease)
+
+Purpose: Obesity is becoming a major problem these days. And Obesity causes many serious health problems one of them is heart related problems. Is certain age group people with obesity are more prone to heart problems then others? This research will help cardiologist and Weight Loss Experts.
+
+**Research quesion 3:**
+
+Does Eating fruits and doing excercise are associated with increasesed the chances of staying healthy and fit? 
+
+Variables: fruit1 (How Many Times Did You Eat Fruit?),exerany2 (Exercise In Past 30 Days) and qlhlth2 (How Many Days Full Of Energy In Past 30 Days)
+
+Audience: Gym trainers, Fitness ehusiasts are interested in the benefits of exercise and healthy food and any possible relationships with exercise , good food and healthy days.
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+
+**Research quesion 1:**
+
+The complete cases were found for the desired variables using selecting the desired variables into a new dataset dataQ2 and before that filtering the undesired values of these 3 variables from the data.
+
+```{r}
+brfss2013 <- brfss2013 %>% filter(!is.na(X_age_g),!is.na(employ1),!is.na(menthlth))
+dataQ2 <- brfss2013 %>% select(employ1,X_age_g,menthlth)
+dataQ2$employ1 <- plyr::revalue(dataQ2$employ1, c( "Out of work for 1 year or more" = "unemployed(>1Yr)", "Out of work for less than 1 year" = "unemployed(<1Yr)" ))
+pandoc.table(head(dataQ2), caption = "Fig. 1-0 - Observations 1 to 6 for output data frame `dataQ2`", justify = "center")
+```
+
+To determine if there is an association between employment status and the number of days where mental health was not good, the summary statistics for measures of center and measures of the spread were determined. The skew of the data was also determined by comparing the mean and median.
+
+```{r}
+sum2 <- dataQ2 %>% 
+    group_by(X_age_g, employ1) %>% 
+    summarize(Q1 = quantile(menthlth, 0.25), MEAN = mean(menthlth), MEDIAN = median(menthlth),Q3 = quantile(menthlth, 0.75), IQR = IQR(menthlth), STDEV = sd(menthlth)) %>%
+    mutate(SKEW = ifelse(MEAN > MEDIAN, "RIGHT", "LEFT"))
+                                                                                                                                                    
+pandoc.table(sum2, caption = "Fig. 1-1 - Summary Statistics for Age group and Employment status Grouped by No of days mental health not good", justify = "center", split.cells = c(12,58,1,1,1,1,1,1,30))
+```
+
+These summary statistics indicate that at least 25% of the respondents of  all of the Employment and age group combinations report zero days with mental health that was not good. The distribution for each category is heavily right-skewed, especially given that the possible maximum value for menthlth is 30.
+The people who are Unable to work and those who are unemployed have highest mean value for menthlth. This shows how unemployment or not able to do work is creating a mental pressure and deteriorating the mental health of people. The mean menthlth for all Employment types first increases to a certail age bracket then it decreases. This shows the pension pllan and schemes for senior citizens which remove the pressure to work so better mental health.
+
+However, so many respondents reported zero days, there may be some hidden information or clearer associations if respondents who reported zero are excluded. One can check with another table Sum3.
+
+```{r}
+sum3 <- dataQ2 %>% 
+    group_by(menthlth) %>% 
+    summarize(n = n())
+total <- sum(sum3$n)
+sum3 <- sum3 %>% mutate(`% of total` = round(n/total*100,digits=1))
+                                                                                                                                                    
+pandoc.table(sum3, caption = "Fig. 1-2 - Summary Statistics for Sum3", justify = "center")
+```
+
+Sure enough, 69.2% of all respondents reported zero days of poor Mental health. The data is heavily skewed with the inclusion of zero values as most people do not report being mentally ill.
+
+
+
+One can consider the summary statistics of the data without the zero value to see if any other associations emerge - sum4:
+
+```{r}
+sum4 <- dataQ2 %>% 
+    filter(menthlth != 0) %>%
+    group_by(X_age_g, employ1) %>% 
+    summarize(Q1 = quantile(menthlth, 0.25), MEAN = mean(menthlth), MEDIAN = median(menthlth),Q3 = quantile(menthlth, 0.75), IQR = IQR(menthlth), STDEV = sd(menthlth)) %>%
+    mutate(SKEW = ifelse(MEAN > MEDIAN, "RIGHT", "LEFT"))
+
+pandoc.table(sum4, caption = "Fig. 1-3 - Summary Statistics for Sum4 Table", justify = "center" , split.cells = c(8,58,1,1,1,1,1,1,30))
+```
+
+Excluding the respondents who had zero days of poor mental health, a similar association pattern appears as before, but, now, unique median values are present. Now some Unable to work in certain age group is left skewed with very high median value. This shows the mental pressure to earn among those people which is causing serious harm to their mental health.
+
+A plot of the data to shows the averages of each category across age groups :
+
+```{r}
+ggplot(sum4, aes(x = employ1, y = MEAN, col = X_age_g, group = X_age_g)) + 
+    geom_line(lwd=2) + 
+    scale_y_continuous(breaks = c(5:100)) + 
+    scale_color_manual(values = heat_hcl(6, h = c(20,-80), l = c(75,40), c =c(40,80), power = 1)) +
+    labs(title = "Average Number Of Days Respondent's Mental Health Was \n Not Good by Employment and Age ", color = "Age",x = "Respondent's Employment", y = "Average Number Of Days Mental  Health Was Not Good") +
+    theme(plot.title = element_text(hjust = 0.5)) + coord_fixed(ratio=1/3) + theme(axis.text.x= element_text(size = 5)) 
+
+
+```
+
+We can clearly observe that mean value of menthlth for people who are Unable to work is highest across all age groups. Also the lowest mean value for menthlth is for Employed for wages across almost all age group. Also the least mean is for Students of Age 18-24 as at that time they only concentrate on their studies and generally they don't have any other responsibilities. 
+
+Conclusion: Mental Health is highly dependent of person's employment status and age. As when a person is unemployed or is unable to work then the mental health affected. The students and homemaker have very less mental health issues compared to others. So we can conclude that the when a person is not doing any work then it affects his/her mental health.  
+
+**Research quesion 2:**
+
+The complete cases were found for the desired variables using selecting the desired variables into a new dataset dataQ3 and before that filtering the undesired values of these 3 variables from the data.
+```{r}
+brfss2013 <- brfss2013 %>% filter(!is.na(X_rfbmi5),!is.na(employ1),!is.na(cvdcrhd4))
+dataQ3 <- brfss2013 %>% select(X_rfbmi5,X_age_g,cvdcrhd4)
+pandoc.table(head(dataQ3), caption = "Fig. 2-0 - Observations 1 to 6 for output data frame `dataQ3`", justify = "center")
+```
+
+Starting with the two categorical variables, X_age_g and cvdcrhd4, a summary table was made to summarize the number of respondents in each category with taking only people with obesity. The proportion of each age group that had a heart disease was also calculated 
+
+```{r}
+sum_obs <- dataQ3 %>% 
+    filter(X_rfbmi5 == "Yes") %>%
+    group_by(X_age_g, cvdcrhd4) %>% 
+    summarize(Sum = n()) %>% 
+    spread(cvdcrhd4, Sum) %>% 
+    mutate(Sum = Yes+No, `% Yes` = round(Yes/Sum*100, digits =1))
+colnames(sum_obs)[1] <- "Age Group"
+
+pandoc.table(sum_obs, caption = "Fig. 2-1a - Have Obesity Only - Summary Statistics for If Respondent have heart disease Grouped by Age Group", justify = "center")
+```
+
+Another summary table was made with taking only people without obesity. This time too proportion of each age group that had no heart disease was also calculated.
+
+```{r}
+sum_obs <- dataQ3 %>% 
+    filter(X_rfbmi5 == "No") %>%
+    group_by(X_age_g, cvdcrhd4) %>% 
+    summarize(Sum = n()) %>% 
+    spread(cvdcrhd4, Sum) %>% 
+    mutate(Sum = Yes+No, `% Yes` = round(Yes/Sum*100, digits =1))
+colnames(sum_obs)[1] <- "Age Group"
+
+pandoc.table(sum_obs, caption = "Fig. 2-1b - Not have Obesity Only - Summary Statistics for If Respondent have heart disease Grouped by Age Group", justify = "center")
+```
+
+This summary table illustrates an association in the data between age group , Obesity and the heart disease.Since the proportion of each age group that have a heart disease increases as age group increases, higher age group people are associated with a higher chances of heart disease.
+
+Considering these two tables, Figures 2-1a and 2-1b, there is a substantial association between having obesity and whether the US adult has heart disease by age group. For instance, for the all age group with people having obesity the percentage of people with heart disease is significanlly higher than that of people not having obesity. This shows that with obesity the chances of heart disease increases.
+
+All of the relationships identified so far using the summary tables can be visualized in one facetted proportional barplot:
+
+```{r}
+colnames(dataQ3)[1] <- "Have Obesity?"
+ggplot(dataQ3, aes(x= X_age_g, y = 1, fill = cvdcrhd4))+ 
+    geom_bar(stat="identity", position = "fill") + 
+    facet_grid(`Have Obesity?`~., labeller = label_both) + 
+    scale_fill_manual(values = rainbow_hcl(2)) +
+    scale_y_continuous(labels = c("0%", "25%", "50%", "75%", "100%")) +
+    labs(title = "Proportion of Respondents Who have heart disease by \n Age Group and Whether They Have Obesity or Overweight", fill = "Have heart disease?",x = "Respondent's Age Group", y = "% Respondents who have heart disease") +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1), plot.title = element_text(hjust = 0.5))
+```
+
+
+By plotting the proportion that have heart disease and facceting by whether the respondent is obese, the assocaition between age and whether the respondent have heart disease is illustrated. Older age respondents proportionally have more chance to have heart disease than younger respondents.
+
+Conclusion: Having Obesity increases the chances of having a heart disease. And Older person have more chance of having a heart disease than younger person in both scenario's wether he/she has obesity or not. But having Obesity increases the chances significantly.
+
+**Research quesion 3:**
+
+Fruit consumption is categorised as Healthy Diet and Unhealthy Diet.We changed the original variable 'fruit1' and added another column in dataset as 'fruitConsump' which categorizes thae diet of individual as "UnHealthy Diet" or "Healthy Diet".
+
+```{r}
+brfss2013 <- brfss2013 %>% mutate(numfruit = as.numeric(as.character(fruit1)))
+brfss2013 <- brfss2013 %>% filter( !(is.na(numfruit))) %>% mutate(fruitConsump = ifelse( numfruit == 300 | numfruit == 0, "UnHealthy Diet", "Healthy Diet"))
+```
+
+We selected our variables of interest fruitConsump,exerany2(tells exercise status of a person),qlhlth2(No of active days in a Month) into a new dataSet and filtered out unwanted enteries.
+
+```{r}
+dataQ1 <- brfss2013 %>% select(fruitConsump,exerany2,qlhlth2) %>% filter(!is.na(qlhlth2), qlhlth2!=0)
+pandoc.table(head(dataQ1), caption = "Fig. 3-0 - Observations 1 to 6 for output data frame `datQ1`", justify = "center")
+
+```
+
+To determine if there is an association between Fruit Consumption and exercise routine status with no of active days in a month, the summary statistics for measures of center and measures of the spread were determined. The skew of the data was also determined by comparing the mean and median - sum1:
+
+```{r}
+sum1 <- dataQ1 %>% group_by(fruitConsump,exerany2) %>% filter(!is.na(exerany2)) %>% summarise(Q1 = quantile(qlhlth2,0.25)  , MEAN = mean(qlhlth2), MEDIAN = median(qlhlth2),Q3 = quantile(qlhlth2,0.75), IQR = IQR(qlhlth2), STDEV = sd(qlhlth2)) %>% mutate(SKEW = ifelse(MEAN > MEDIAN, "RIGHT", "LEFT"))
+pandoc.table(sum1, caption = "Fig. 3-1 - Summary Statistics for No of days full of energy in a month Grouped by Diet and Exercise Status", justify = "center")
+
+```
+
+These summary statistics indicate that the Healthy Diet with Exercise is the best way to have most of your days full of energy. For Healthy Diet with Exercise the mean of no of days with energy in a month is sufficiently higher than all other combinations.
+
+The differences in all possible combinations can be visualized by a density plot:
+
+```{r}
+dataQ1 <- dataQ1 %>% filter(!is.na(exerany2))
+dataQ1 <- dataQ1 %>% mutate(dietExercise = paste(fruitConsump,"-" , as.character(exerany2)))
+
+ggplot(dataQ1, aes(x = qlhlth2, color = dietExercise)) + 
+    geom_density( adjust = 2)  + scale_fill_manual(values = rev(heat_hcl(6, h = c(20,-80), l = c(75,40), c =c(40,80), power = 1))) + scale_x_continuous(breaks = c(1:30)) + scale_y_continuous(labels = c("0%", "25%", "50%", "75%", "100%")) +labs(title = "Distribution of Healthy days in month by Diet Type-Exercise status", y = "Density", x = "Days with Full Of Energy in Month", col = "Diet Type-Exercise") + theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+The density plot reflects the summary statistics as the Healthy Diet with Exercise group is more denser at higher number of days full of energy. Healthy Diet with No exercise is more denser on higher number of days full of energy in comparison to Unhealthy Diet Groups. Unhealthy Diet with no exercise is more denser at lower number of days full of energy in comparison to Unhealthy Diet with Exercise.
+
+Conclusion: Eating Healthy Fruits and Doing Regular Exercise are really important and they help us to stay full of energy in a day. As it is said our health is 90% of our Diet and 10% of the Exercise we Do. This is verified Eating Healthy Food with no Exercise gives keeps you full of energy for more days in comparison to doing exercise but eating Unhealthy Diet.
